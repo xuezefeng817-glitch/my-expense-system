@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>报销支付系统</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="login-page" class="login-container">
+    <div class="login-card">
+        <h2>💰 报销支付系统</h2>
+        <form id="login-form">
+            <div class="form-group"><label>用户名</label><input type="text" id="login-username" required></div>
+            <div class="form-group"><label>密码</label><input type="password" id="login-password" required></div>
+            <button type="submit" class="btn btn-primary" style="width:100%">登录</button>
+        </form>
+        <div style="margin-top:1rem; color:#999; font-size:0.8rem;">
+            <p>测试账号：zhangsan/123456(员工)  lisi/123456(主管)  wangwu/123456(财务)  zhaoliu/123456(财务经理)  chenqi/123456(总经理)  xuezf/123123(管理员)</p>
+        </div>
+    </div>
+</div>
+
+<div id="app-page" style="display: none;">
+    <div class="header">
+        <h1>💰 报销支付系统</h1>
+        <div class="user-info">
+            <span id="current-user-name"></span>
+            <button onclick="logout()">退出</button>
+        </div>
+    </div>
+    <div class="container">
+        <div class="sidebar">
+    <button onclick="showPanel('claims')">我的报销</button>
+    <button onclick="showPanel('loans')">我的借款</button>
+    <button onclick="showPanel('create')">报销申请</button>
+    <button onclick="showPanel('loan_create')">借款申请</button>
+    <button onclick="showPanel('approvals')">报销审批</button>
+    <button onclick="showPanel('loan_approvals')">借款审批</button>
+    <button onclick="showPanel('purchase_approvals')">采购审批</button>
+    <button onclick="showPanel('payment_center')">付款处理中心</button>
+    <button onclick="showPanel('purchase_create')">资产采购申请</button>
+    <button onclick="showPanel('my_purchases')">我的采购申请</button>
+    <button id="menu-flows" onclick="showPanel('flows')">流程配置</button>
+    <div id="menu-basic-data" style="border-top:1px solid #eee; margin-top:1rem; padding-top:1rem;">
+        <div style="font-size:0.8rem; color:#999; padding-left:0.5rem;">基础数据</div>
+        <button onclick="showPanel('organization')">组织架构</button>
+        <button onclick="showPanel('departments')">部门管理</button>
+        <button onclick="showPanel('legal_persons')">法人信息</button>
+        <button onclick="showPanel('expense_types')">费用类型</button>
+        <button onclick="showPanel('operation_types')">业务所属</button>
+        <button onclick="showPanel('currencies')">币种管理</button>
+    </div>
+    <!-- 收款信息管理按钮：所有用户可见 -->
+    <button onclick="showPanel('payee_accounts')">收款信息管理</button>
+    <!-- 用户管理按钮：仅管理员可见 -->
+    <button id="menu-roles" onclick="showPanel('roles')">角色管理</button> 
+    <button id="menu-users" onclick="showPanel('users')">用户管理</button>
+</div>
+        <div class="main">
+            <!-- 报销单据面板 -->
+            <div id="claims-panel" class="panel">
+                <div class="card">
+                    <h2>报销单据列表</h2>
+                    
+                    <table class="table"><thead><tr><th>单据号</th><th>申请人</th><th>部门</th><th>法人</th><th>金额</th><th>收款账户</th><th>类别</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="claims-table-body"></tbody></table>
+                </div>
+            </div>
+            <!-- 报销申请面板 -->
+            <div id="create-panel" class="panel" style="display:none;">
+                <div class="card">
+                    <h2>新建报销单</h2>
+                    <form id="claim-form">
+                        <div class="grid-container" style="grid-template-columns: repeat(4,1fr);">
+                            <div class="form-group"><label>单据号</label><input type="text" id="claim-document-number" readonly style="background:#f8f9fa; color:#667eea; font-weight:bold;"></div>
+                            <div class="form-group"><label>法人主体</label><select id="claim-legal-person"></select></div>
+                            <div class="form-group"><label>币种</label><select id="claim-currency"></select></div>
+                            <div class="form-group">
+    <label>申请人</label>
+    <input type="text" id="claim-user-name" readonly value="" style="background:#f8f9fa; width:100%;">
+</div>
+                        </div>
+                        <div style="display: flex; gap: 1rem; align-items: flex-end;">
+    <div class="form-group" style="flex:1; max-width:300px;">
+        <label>费用所属部门</label>
+        <select id="claim-department"></select>
+    </div>
+    <div class="form-group">
+        <label>申请日期</label>
+        <input type="text" id="claim-date" readonly value="" style="background:#f8f9fa; width:150px;">
+    </div>
+</div>
+                        <div class="form-group"><label>备注说明</label><textarea id="claim-description" rows="3"></textarea></div>
+                        <div class="form-group" style="border:1px solid #eee; border-radius:8px; padding:1rem;">
+                            <div style="display:flex; justify-content:space-between;"><label>报销费用信息</label><button type="button" class="btn btn-primary btn-sm" onclick="addExpenseRow()" style="transform: translateY(-10px);">+ 新增行</button></div>
+                            <table class="table"><thead><tr><th>序号</th><th>业务所属</th><th>类别</th><th>金额</th><th>操作</th></tr></thead><tbody id="expense-items-body"></tbody></table>
+                            <div class="form-group" style="text-align:right;"><strong>合计金额：</strong><span id="total-amount">¥0.00</span></div>
+                        </div>
+                        <div class="form-group"><label>票据上传</label><div class="upload-area" id="upload-area"><input type="file" id="receipt-files" multiple accept="image/*,.pdf"><div>📁 点击或拖拽上传票据</div><div style="font-size:0.8rem;">支持 JPG, PNG, PDF</div></div><div id="uploaded-files"></div></div>
+                        <div class="form-group" style="border:1px solid #eee; border-radius:8px; padding:1rem;">
+                            <!-- 借款冲账信息 -->
+<div class="form-group" style="border:1px solid #eee; border-radius:8px; padding:1rem; margin-bottom:1rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <label style="font-weight:bold;">借款冲账信息</label>
+        <button type="button" class="btn btn-primary btn-sm" onclick="addLoanOffsetRow()">+ 新增借款冲账</button>
+    </div>
+    <table class="table" id="loan-offset-table">
+        <thead>
+            <tr><th>借款单据号</th><th>借款总金额</th><th>已核销金额</th><th>剩余可核销</th><th>本次核销金额</th><th>操作</th>
+        </thead>
+        <tbody id="loan-offset-tbody"></tbody>
+    </table>
+    <div class="form-group" style="text-align:right; margin-top:0.5rem;">
+        <strong>本次申请冲账总金额：</strong><span id="total-offset-amount">¥0.00</span>
+    </div>
+</div>
+                            <label>收款方信息</label>
+                            <div class="form-group"><label>选择收款账户</label><select id="claim-payee-account"></select></div>
+                            <div class="grid-container">
+                                <div class="form-group"><label>收款方名称</label><input type="text" id="payee-name" readonly style="background:#f8f9fa;"></div>
+                                <div class="form-group"><label>收款方账号</label><input type="text" id="payee-number" readonly style="background:#f8f9fa;"></div>
+                                <div class="form-group"><label>收款金额</label><input type="number" id="payee-amount" step="0.01"></div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">提交报销</button><button type="button" class="btn btn-secondary" onclick="saveClaimDraft()">保存草稿</button>
+                    </form>
+                </div>
+            </div>
+            <!-- 借款申请面板 -->
+<div id="loan_create-panel" class="panel" style="display:none;">
+    <div class="card">
+        <h2>借款申请</h2>
+        <form id="loan-form">
+            <div class="grid-container" style="grid-template-columns: repeat(4,1fr);">
+                <div class="form-group"><label>单据号</label><input type="text" id="loan-document-number" readonly style="background:#f8f9fa; color:#667eea; font-weight:bold;"></div>
+                <div class="form-group"><label>法人主体</label><select id="loan-legal-person"></select></div>
+                <div class="form-group"><label>币种</label><select id="loan-currency"></select></div>
+                <div class="form-group"><label>申请人</label><input type="text" id="loan-user-name" readonly value="" style="background:#f8f9fa;"></div>
+            </div>
+            <div style="display: flex; gap: 1rem; align-items: flex-end;">
+                <div class="form-group" style="flex:1; max-width:300px;">
+                    <label>费用所属部门</label>
+                    <select id="loan-department"></select>
+                </div>
+                <div class="form-group">
+                    <label>申请日期</label>
+                    <input type="text" id="loan-date" readonly value="" style="background:#f8f9fa; width:150px;">
+                </div>
+            </div>
+            <div class="form-group"><label>备注说明（借款用途）</label><textarea id="loan-purpose" rows="3"></textarea></div>
+            <div class="form-group" style="border:1px solid #eee; border-radius:8px; padding:1rem;">
+                <div style="display:flex; justify-content:space-between;"><label>借款信息</label><button type="button" class="btn btn-primary btn-sm" onclick="addLoanExpenseRow()">+ 新增行</button></div>
+                <table class="table"><thead><tr><th>序号</th><th>业务所属</th><th>借款类别</th><th>金额</th><th>操作</th></tr></thead><tbody id="loan-expense-items-body"></tbody></table>
+                <div class="form-group" style="text-align:right;"><strong>合计金额：</strong><span id="loan-total-amount">¥0.00</span></div>
+            </div>
+            <div class="form-group" style="border:1px solid #eee; border-radius:8px; padding:1rem;">
+                <label>收款方信息</label>
+                <div class="form-group"><label>选择收款账户</label><select id="loan-payee-account"></select></div>
+                <div class="grid-container">
+                    <div class="form-group"><label>收款方名称</label><input type="text" id="loan-payee-name" readonly style="background:#f8f9fa;"></div>
+                    <div class="form-group"><label>收款方账号</label><input type="text" id="loan-payee-number" readonly style="background:#f8f9fa;"></div>
+                    <div class="form-group"><label>借款金额</label><input type="number" id="loan-payee-amount" step="0.01"></div>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">提交借款申请</button><button type="button" class="btn btn-secondary" onclick="saveLoanDraft()">保存草稿</button>
+        </form>
+    </div>
+</div>
+
+<!-- 我的借款列表面板 -->
+<div id="loans-panel" class="panel" style="display:none;">
+    <div class="card">
+        <h2>我的借款申请</h2>
+        <table class="table"><thead><tr><th>单据号</th><th>申请人</th><th>部门</th><th>法人</th><th>金额</th><th>收款账户</th><th>类别</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="loans-table-body"></tbody></table>
+    </div>
+</div>
+<!-- 借款审批面板 -->
+<div id="loan_approvals-panel" class="panel" style="display:none;">
+    <div class="card">
+        <h2>借款审批</h2>
+        <div class="nav-tabs">
+            <button class="active" onclick="filterLoanApprovals('pending')">待我审批</button>
+            <button onclick="filterLoanApprovals('all')">全部借款</button>
+        </div>
+        <table class="table">
+            <thead>
+                <tr><th>单据号</th><th>申请人</th><th>部门</th><th>法人</th><th>金额</th><th>类别</th><th>状态</th><th>创建时间</th><th>操作</th>
+            </thead>
+            <tbody id="loan-approvals-table-body"></tbody>
+        </table>
+    </div>
+</div>
+            <!-- 报销审批面板 -->
+            <div id="approvals-panel" class="panel" style="display:none;">
+                <div class="card">
+                    <h2>报销审批</h2>
+                    <div class="nav-tabs"><button class="active" onclick="filterApprovals('pending')">待我审批</button><button onclick="filterApprovals('all')">全部记录</button></div>
+                    <table class="table"><thead><tr><th>单据号</th><th>申请人</th><th>部门</th><th>法人</th><th>金额</th><th>类别</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="approvals-table-body"></tbody></table>
+                </div>
+            </div>
+            <!-- 部门管理面板（平级列表，备选） -->
+            <div id="departments-panel" class="panel" style="display:none;">
+                <div class="card"><div style="display:flex; justify-content:space-between;"><h2>部门管理</h2><button class="btn btn-primary" onclick="showDepartmentModal()">+ 新增部门</button></div>
+                <table class="table"><thead><tr><th>名称</th><th>编码</th><th>描述</th><th>状态</th><th>操作</th></tr></thead><tbody id="departments-table-body"></tbody></table></div>
+            </div>
+            <!-- 流程配置面板 -->
+            <div id="flows-panel" class="panel" style="display:none;">
+                <div class="card"><div style="display:flex; justify-content:space-between;"><h2>审批流程配置</h2><button class="btn btn-primary" onclick="showFlowModal()">+ 新建流程</button></div>
+                <table class="table"><thead><tr><th>名称</th><th>适用部门</th><th>步骤数</th><th>状态</th><th>操作</th></tr></thead><tbody id="flows-table-body"></tbody></table></div>
+            </div>
+            <!-- 法人信息面板 -->
+            <div id="legal_persons-panel" class="panel" style="display:none;">
+                <div class="card"><div style="display:flex; justify-content:space-between;"><h2>法人信息管理</h2><button class="btn btn-primary" onclick="showLegalPersonModal()">+ 新增法人</button></div>
+                <table class="table"><thead><tr><th>名称</th><th>统一信用代码</th><th>地址</th><th>联系人</th><th>电话</th><th>状态</th><th>操作</th></tr></thead><tbody id="legal-persons-table-body"></tbody></table></div>
+            </div>
+            <!-- 币种管理面板 -->
+            <div id="currencies-panel" class="panel" style="display:none;">
+                <div class="card"><div style="display:flex; justify-content:space-between;"><h2>币种管理</h2><button class="btn btn-primary" onclick="showCurrencyModal()">+ 新增币种</button></div>
+                <table class="table"><thead><tr><th>代码</th><th>名称</th><th>符号</th><th>汇率</th><th>状态</th><th>操作</th></tr></thead><tbody id="currencies-table-body"></tbody></table></div>
+            </div>
+            <!-- 费用类型面板 -->
+            <div id="expense_types-panel" class="panel" style="display:none;">
+                <div class="card"><div style="display:flex; justify-content:space-between;"><h2>费用类型管理</h2><button class="btn btn-primary" onclick="showExpenseTypeModal()">+ 新增费用类型</button></div>
+                <table class="table"><thead><tr><th>编码</th><th>名称</th><th>描述</th><th>状态</th><th>操作</th></tr></thead><tbody id="expense-types-table-body"></tbody></table></div>
+            </div>
+            <!-- 业务所属面板 -->
+            <div id="operation_types-panel" class="panel" style="display:none;">
+                <div class="card"><div style="display:flex; justify-content:space-between;"><h2>业务所属管理</h2><button class="btn btn-primary" onclick="showOperationTypeModal()">+ 新增业务类型</button></div>
+                <table class="table"><thead><tr><th>编码</th><th>名称</th><th>描述</th><th>状态</th><th>操作</th></tr></thead><tbody id="operation-types-table-body"></tbody></table></div>
+            </div>
+            <!-- 收款信息面板 -->
+            <div id="payee_accounts-panel" class="panel" style="display:none;">
+                <div class="card"><div style="display:flex; justify-content:space-between;"><h2>收款信息管理</h2><button class="btn btn-primary" onclick="showPayeeAccountModal()">+ 新增收款信息</button></div>
+                <table class="table"><thead><tr><th>收款方名称</th><th>账号</th><th>开户行简称</th><th>开户行所在地</th><th>状态</th><th>操作</th></tr></thead><tbody id="payee-accounts-table-body"></tbody></table></div>
+            </div>
+            <!-- 组织架构面板（树形） -->
+            <div id="organization-panel" class="panel" style="display:none;">
+                <div class="card"><div style="display:flex; justify-content:space-between;"><h2>组织架构</h2><button class="btn btn-primary" onclick="showDeptModal()">+ 新增部门</button></div>
+                <div id="org-tree-container"></div></div>
+            </div>
+            <!-- 用户管理面板 -->
+            <div id="users-panel" class="panel" style="display:none;">
+                <div class="card"><div style="display:flex; justify-content:space-between;"><h2>用户管理</h2><button class="btn btn-primary" onclick="showUserModal()">+ 新增用户</button></div>
+                <table class="table"><thead><tr><th>姓名</th><th>邮箱</th><th>账号</th><th>角色</th><th>部门</th><th>操作</th></tr></thead><tbody id="users-table-body"></tbody></table></div>
+            </div>
+
+            <!-- 角色管理面板 -->
+            <div id="roles-panel" class="panel" style="display:none;">
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between;">
+                        <h2>角色管理</h2>
+                        <button class="btn btn-primary" onclick="showRoleModal()">+ 新增角色</button>
+                    </div>
+                    <table class="table">
+                        <thead>
+                            <tr><th>角色名称</th><th>角色代码</th><th>描述</th><th>状态</th><th>操作</th>
+                        </thead>
+                        <tbody id="roles-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+<!-- 付款处理中心面板 -->
+<div id="payment_center-panel" class="panel" style="display:none;">
+    <div class="card">
+        <h2>付款处理中心</h2>
+        <div class="nav-tabs">
+            <button class="active" onclick="switchPaymentTab('unpaid')">未付款</button>
+            <button onclick="switchPaymentTab('paid')">已付款</button>
+        </div>
+        <div id="payment-toolbar" style="margin-bottom: 1rem;">
+            <button class="btn btn-primary btn-sm" onclick="batchRegisterPayment()" id="batch-register-btn" style="display: none;">批量登记付款</button>
+            <span id="selected-count" style="margin-left: 1rem;"></span>
+        </div>
+        <table class="table" id="payment-table">
+            <thead>
+                <tr>
+                    <th><input type="checkbox" id="select-all" style="width: 20px;"></th>
+                    <th>单据类型</th>
+                    <th>单据号</th>
+                    <th>申请人</th>
+                    <th>申请日期</th>
+                    <th>收款人</th>
+                    <th>收款账号</th>
+                    <th>开户行</th>
+                    <th>总金额</th>
+                    <th>法人主体</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="payment-table-body"></tbody>
+        </table>
+    </div>
+</div>
+        </div>   <!-- main 结束 -->
+
+<!-- 资产采购申请面板 -->
+<div id="purchase_create-panel" class="panel" style="display:none;">
+    <div class="card">
+        <h2>资产采购申请单</h2>
+        <form id="purchase-form">
+            <div class="grid-container" style="grid-template-columns: repeat(4,1fr);">
+                <div class="form-group"><label>单据号</label><input type="text" id="purchase-document-number" readonly style="background:#f8f9fa; color:#667eea; font-weight:bold;"></div>
+                <div class="form-group"><label>法人主体</label><select id="purchase-legal-person"></select></div>
+                <div class="form-group"><label>币种</label><select id="purchase-currency"></select></div>
+                <div class="form-group"><label>申请人</label><input type="text" id="purchase-user-name" readonly style="background:#f8f9fa;"></div>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <div class="form-group" style="flex:1;"><label>申请日期</label><input type="text" id="purchase-date" readonly style="background:#f8f9fa;"></div>
+                <div class="form-group" style="flex:1;"><label>申请人所属部门</label><input type="text" id="purchase-user-department" readonly style="background:#f8f9fa;"></div>
+            </div>
+
+            <!-- 合同信息 -->
+            <div class="form-group" style="border:1px solid #eee; border-radius:8px; padding:1rem; margin-top:1rem;">
+                <div style="display:flex; justify-content:space-between;"><label>合同信息</label><button type="button" class="btn btn-primary btn-sm" onclick="addContractRow()">+ 新增行</button></div>
+                <table class="table" id="contract-table">
+                    <thead><tr><th>合同编号</th><th>合同名称</th><th>供应商名称</th><th>操作</th></tr></thead>
+                    <tbody id="contract-tbody"></tbody>
+                </table>
+            </div>
+
+            <!-- 采购信息 -->
+            <div class="form-group" style="border:1px solid #eee; border-radius:8px; padding:1rem; margin-top:1rem;">
+                <div style="display:flex; justify-content:space-between;"><label>采购信息</label><button type="button" class="btn btn-primary btn-sm" onclick="addPurchaseItemRow()">+ 新增行</button></div>
+                <table class="table" id="purchase-item-table">
+                    <thead>
+                        <tr><th>申请付款单位</th><th>采购类型</th><th>物品名称</th><th>采购数量</th><th>采购合同总金额</th><th>本次申请付款金额</th><th>操作</th></tr>
+                    </thead>
+                    <tbody id="purchase-item-tbody"></tbody>
+                </table>
+                <div style="text-align:right; margin-top:0.5rem;"><strong>本次申请付款合计：</strong><span id="purchase-total-amount">¥0.00</span></div>
+            </div>
+
+            <div class="form-group"><label>付款备注说明</label><textarea id="purchase-payment-remark" rows="3"></textarea></div>
+
+            <div class="form-group"><label>票据与合同上传</label>
+                <div class="upload-area" id="purchase-upload-area"><input type="file" id="purchase-attachments" multiple accept="image/*,.pdf,.doc,.docx"><div>📁 点击或拖拽上传票据/合同</div><div style="font-size:0.8rem;">支持 JPG, PNG, PDF, DOC</div></div>
+                <div id="purchase-uploaded-files"></div>
+            </div>
+
+            <div class="form-group" style="border:1px solid #eee; border-radius:8px; padding:1rem;">
+                <label>收款方信息</label>
+                <div class="form-group"><label>选择收款账户</label><select id="purchase-payee-account"></select></div>
+                <div class="grid-container">
+                    <div class="form-group"><label>收款方名称</label><input type="text" id="purchase-payee-name" readonly style="background:#f8f9fa;"></div>
+                    <div class="form-group"><label>收款方账号</label><input type="text" id="purchase-payee-number" readonly style="background:#f8f9fa;"></div>
+                    <div class="form-group"><label>收款金额</label><input type="number" id="purchase-payee-amount" step="0.01" readonly style="background:#f8f9fa;"></div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">提交申请</button><button type="button" class="btn btn-secondary" onclick="savePurchaseDraft()">保存草稿</button>
+        </form>
+    </div>
+</div>
+
+<!-- 我的采购申请面板 -->
+<div id="my_purchases-panel" class="panel" style="display:none;">
+    <div class="card">
+        <h2>我的采购申请</h2>
+        <table class="table" style="width:100%;">
+            <thead><tr><th>单据号</th><th>申请人</th><th>部门</th><th>法人</th><th>总申请金额</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
+            <tbody id="my-purchases-table-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 采购审批面板 -->
+<div id="purchase_approvals-panel" class="panel" style="display:none;">
+    <div class="card">
+        <h2>采购审批</h2>
+        <div class="nav-tabs"><button class="active" onclick="filterPurchaseApprovals('pending')">待我审批</button><button onclick="filterPurchaseApprovals('all')">全部记录</button></div>
+        <table class="table">
+            <thead><tr><th>单据号</th><th>申请人</th><th>部门</th><th>法人</th><th>总金额</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
+            <tbody id="purchase-approvals-table-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 全局模态框 -->
+<div class="modal" id="toast-modal"><div class="toast-content"><div class="toast-icon" id="toast-icon"></div><div class="toast-message" id="toast-message"></div><button class="btn btn-primary" onclick="closeToast()">确定</button></div></div>
+<div class="modal" id="approval-modal"><div class="modal-content" style="max-width:700px;"><h3>审批报销单</h3><div id="approval-detail"></div><div id="approval-actions" style="display:none;"></div><div id="reedit-actions" style="display:none;"><button class="btn btn-primary" onclick="alert('请在报销单列表中重新编辑并提交')">重新编辑</button></div><div style="text-align:right;"><button class="btn btn-secondary" onclick="closeApprovalModal()">关闭</button></div></div></div>
+<div class="modal" id="department-modal"><div class="modal-content"><h3 id="department-modal-title">新增部门</h3><form id="department-form"><input type="hidden" id="department-id"><div class="form-group"><label>部门名称</label><input type="text" id="department-name" required></div><div class="form-group"><label>部门编码</label><input type="text" id="department-code"></div><div class="form-group"><label>所属法人</label><select id="department-legal-person"></select></div><div class="form-group"><label>上级部门</label><select id="department-parent"><option value="">无（顶级部门）</option></select></div><div class="form-group"><label>描述</label><input type="text" id="department-description"></div><div class="form-group"><label>状态</label><select id="department-enabled"><option value="true">启用</option><option value="false">禁用</option></select></div><div style="display:flex; gap:1rem; justify-content:flex-end;"><button type="button" class="btn btn-secondary" onclick="closeDepartmentModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div></form></div></div>
+<div class="modal" id="flow-modal"><div class="modal-content"><h3 id="flow-modal-title">新建审批流程</h3><form id="flow-form"><input type="hidden" id="flow-id"><div class="form-group"><label>流程名称</label><input type="text" id="flow-name" required></div><div class="form-group"><label>适用部门</label><input type="text" id="flow-department"></div><div class="form-group"><label>审批步骤</label><div id="flow-steps"></div><button type="button" class="btn btn-secondary btn-sm" onclick="addStep()">+ 添加步骤</button></div><div style="display:flex; gap:1rem; justify-content:flex-end;"><button type="button" class="btn btn-secondary" onclick="closeFlowModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div></form></div></div>
+<div class="modal" id="legal-person-modal"><div class="modal-content"><h3 id="legal-person-modal-title">新增法人信息</h3><form id="legal-person-form"><input type="hidden" id="legal-person-id"><div class="form-group"><label>法人名称</label><input type="text" id="legal-person-name" required></div><div class="form-group"><label>统一社会信用代码</label><input type="text" id="legal-person-code"></div><div class="form-group"><label>地址</label><input type="text" id="legal-person-address"></div><div class="form-group"><label>联系人</label><input type="text" id="legal-person-contact"></div><div class="form-group"><label>联系电话</label><input type="text" id="legal-person-phone"></div><div class="form-group"><label>状态</label><select id="legal-person-enabled"><option value="true">启用</option><option value="false">禁用</option></select></div><div style="display:flex; gap:1rem; justify-content:flex-end;"><button type="button" class="btn btn-secondary" onclick="closeLegalPersonModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div></form></div></div>
+<div class="modal" id="currency-modal"><div class="modal-content"><h3 id="currency-modal-title">新增币种</h3><form id="currency-form"><input type="hidden" id="currency-id"><div class="form-group"><label>币种代码</label><input type="text" id="currency-code" required></div><div class="form-group"><label>币种名称</label><input type="text" id="currency-name" required></div><div class="form-group"><label>货币符号</label><input type="text" id="currency-symbol"></div><div class="form-group"><label>汇率</label><input type="number" id="currency-rate" step="0.01" value="1.0"></div><div class="form-group"><label>状态</label><select id="currency-enabled"><option value="true">启用</option><option value="false">禁用</option></select></div><div style="display:flex; gap:1rem; justify-content:flex-end;"><button type="button" class="btn btn-secondary" onclick="closeCurrencyModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div></form></div></div>
+<div class="modal" id="payee-account-modal"><div class="modal-content"><h3 id="payee-account-modal-title">新增收款信息</h3><form id="payee-account-form"><input type="hidden" id="payee-account-id"><div class="form-group"><label>收款方名称</label><input type="text" id="payee-account-name" required></div><div class="form-group"><label>收款账号</label><input type="text" id="payee-account-number" required></div><div class="form-group"><label>开户行简称</label><input type="text" id="payee-bank-short-name"></div><div class="form-group"><label>开户行所在地</label><input type="text" id="payee-bank-location"></div><div class="form-group"><label>账户状态</label><select id="payee-account-enabled"><option value="true">启用</option><option value="false">禁用</option></select></div><div style="display:flex; gap:1rem; justify-content:flex-end;"><button type="button" class="btn btn-secondary" onclick="closePayeeAccountModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div></form></div></div>
+<div class="modal" id="operation-type-modal"><div class="modal-content"><h3 id="operation-type-modal-title">新增业务类型</h3><form id="operation-type-form"><input type="hidden" id="operation-type-id"><div class="form-group"><label>业务类型编码</label><input type="text" id="operation-type-code" required></div><div class="form-group"><label>业务类型名称</label><input type="text" id="operation-type-name" required></div><div class="form-group"><label>描述</label><input type="text" id="operation-type-description"></div><div class="form-group"><label>状态</label><select id="operation-type-enabled"><option value="true">启用</option><option value="false">禁用</option></select></div><div style="display:flex; gap:1rem; justify-content:flex-end;"><button type="button" class="btn btn-secondary" onclick="closeOperationTypeModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div></form></div></div>
+<div class="modal" id="expense-type-modal"><div class="modal-content"><h3 id="expense-type-modal-title">新增费用类型</h3><form id="expense-type-form"><input type="hidden" id="expense-type-id"><div class="form-group"><label>费用类型编码</label><input type="text" id="expense-type-code" required></div><div class="form-group"><label>费用类型名称</label><input type="text" id="expense-type-name" required></div><div class="form-group"><label>描述</label><input type="text" id="expense-type-description"></div><div class="form-group"><label>状态</label><select id="expense-type-enabled"><option value="true">启用</option><option value="false">禁用</option></select></div><div style="display:flex; gap:1rem; justify-content:flex-end;"><button type="button" class="btn btn-secondary" onclick="closeExpenseTypeModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div></form></div></div>
+<div class="modal" id="user-modal"><div class="modal-content"><h3 id="user-modal-title">新增用户</h3><form id="user-form"><input type="hidden" id="user-id"><div class="form-group"><label>用户姓名</label><input type="text" id="user-name" required></div><div class="form-group"><label>邮箱</label><input type="email" id="user-email" required></div><div class="form-group"><label>用户账号</label><input type="text" id="user-username" required></div><div class="form-group"><label>用户密码</label><input type="password" id="user-password" placeholder="不填则使用默认密码"></div><div class="form-group"><label>角色</label><select id="user-role"><option value="employee">员工</option><option value="department_manager">部门主管</option><option value="finance_staff">财务</option><option value="admin">管理员</option></select></div><div class="form-group"><label>所属部门</label><select id="user-department"></select></div><div style="display:flex; gap:1rem; justify-content:flex-end;"><button type="button" class="btn btn-secondary" onclick="closeUserModal()">取消</button><button type="submit" class="btn btn-primary">保存</button></div></form></div></div>
+<div class="modal" id="role-modal">
+    <div class="modal-content">
+        <h3 id="role-modal-title">新增角色</h3>
+        <form id="role-form">
+            <input type="hidden" id="role-id">
+            <div class="form-group"><label>角色名称</label><input type="text" id="role-name" required></div>
+            <div class="form-group"><label>角色代码</label><input type="text" id="role-code" required><small style="color:#999;">系统内部标识，不可重复，建议用英文</small></div>
+            <div class="form-group"><label>描述</label><input type="text" id="role-description"></div>
+            <div class="form-group"><label>状态</label><select id="role-enabled"><option value="true">启用</option><option value="false">禁用</option></select></div>
+            <div style="display:flex; gap:1rem; justify-content:flex-end;">
+                <button type="button" class="btn btn-secondary" onclick="closeRoleModal()">取消</button>
+                <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script src="js/app.js"></script>
+</body>
+</html>
